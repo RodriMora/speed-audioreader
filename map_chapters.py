@@ -6,18 +6,18 @@ Reads chapters.json (from EPUB) and alignment_compact.json (from Whisper),
 matches each chapter's opening text to the transcribed word stream, and
 writes the chapter timestamps back into alignment_compact.json.
 
-Run this after preprocess.py:
-    python map_chapters.py
+Usage:
+    python map_chapters.py <book-directory>
+
+Example:
+    python map_chapters.py books/consider-phlebas
 """
 
+import argparse
 import json
 import re
 import sys
 from pathlib import Path
-
-DATA_DIR = Path("app/data")
-CHAPTERS_FILE = DATA_DIR / "chapters.json"
-ALIGNMENT_FILE = DATA_DIR / "alignment_compact.json"
 
 # Minimum chapter text length (characters) to consider a real chapter
 MIN_CHAPTER_TEXT_LEN = 200
@@ -84,21 +84,40 @@ def find_chapter_start(
 
 
 def main():
+    parser = argparse.ArgumentParser(
+        description="Map EPUB chapter boundaries to audio timestamps"
+    )
+    parser.add_argument(
+        "book_dir",
+        type=Path,
+        help="Path to the book directory (e.g. books/consider-phlebas)",
+    )
+    args = parser.parse_args()
+
+    book_dir = args.book_dir
+    if not book_dir.is_dir():
+        print(f"Error: '{book_dir}' is not a directory.", file=sys.stderr)
+        sys.exit(1)
+
+    chapters_file = book_dir / "chapters.json"
+    alignment_file = book_dir / "alignment_compact.json"
+
     print("=" * 60)
     print("Chapter Timestamp Mapper")
+    print(f"  Book directory: {book_dir}")
     print("=" * 60)
 
     # Load data
-    if not CHAPTERS_FILE.exists():
-        print(f"Error: {CHAPTERS_FILE} not found. Run preprocess.py first.")
+    if not chapters_file.exists():
+        print(f"Error: {chapters_file} not found. Run preprocess.py first.")
         sys.exit(1)
-    if not ALIGNMENT_FILE.exists():
-        print(f"Error: {ALIGNMENT_FILE} not found. Run preprocess.py first.")
+    if not alignment_file.exists():
+        print(f"Error: {alignment_file} not found. Run preprocess.py first.")
         sys.exit(1)
 
-    with open(CHAPTERS_FILE) as f:
+    with open(chapters_file) as f:
         chapters = json.load(f)
-    with open(ALIGNMENT_FILE) as f:
+    with open(alignment_file) as f:
         alignment = json.load(f)
 
     words = alignment["words"]  # [[word, start, end], ...]
@@ -176,11 +195,22 @@ def main():
     # Write back into alignment_compact.json
     alignment["chapters"] = mapped_chapters
 
-    with open(ALIGNMENT_FILE, "w") as f:
+    with open(alignment_file, "w") as f:
         json.dump(alignment, f)
 
-    print(f"\n  Updated {ALIGNMENT_FILE} with chapter data")
-    print(f"  File size: {ALIGNMENT_FILE.stat().st_size / 1024 / 1024:.1f} MB")
+    print(f"\n  Updated {alignment_file} with chapter data")
+    print(f"  File size: {alignment_file.stat().st_size / 1024 / 1024:.1f} MB")
+
+    # Also update meta.json if it exists
+    meta_file = book_dir / "meta.json"
+    if meta_file.exists():
+        with open(meta_file) as f:
+            meta = json.load(f)
+        meta["has_chapters"] = True
+        meta["chapter_count"] = len(mapped_chapters)
+        with open(meta_file, "w") as f:
+            json.dump(meta, f, indent=2)
+        print(f"  Updated {meta_file}")
 
     # Print summary
     print("\n  Chapter summary:")

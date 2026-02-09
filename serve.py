@@ -2,10 +2,76 @@
 """Simple HTTP server for the Speed AudioReader app."""
 
 import http.server
+import json
 import os
+import re
 import sys
+from pathlib import Path
 
 PORT = 8080
+
+
+def scan_books(books_dir: str = "books") -> list[dict]:
+    """Scan the books directory for processed books and return their metadata."""
+    books = []
+    books_path = Path(books_dir)
+
+    if not books_path.is_dir():
+        return books
+
+    for entry in sorted(books_path.iterdir()):
+        if not entry.is_dir():
+            continue
+
+        # A book is "ready" if it has alignment_compact.json
+        alignment_file = entry / "alignment_compact.json"
+        meta_file = entry / "meta.json"
+
+        if not alignment_file.exists():
+            continue
+
+        # Read metadata
+        meta = {
+            "slug": entry.name,
+            "title": entry.name.replace("-", " ").replace("_", " ").title(),
+            "author": "Unknown Author",
+            "total_duration": 0,
+            "word_count": 0,
+            "has_chapters": False,
+        }
+
+        if meta_file.exists():
+            try:
+                with open(meta_file) as f:
+                    file_meta = json.load(f)
+                meta.update(file_meta)
+            except Exception:
+                pass
+        else:
+            # Try to read basic info from alignment_compact.json header
+            try:
+                with open(alignment_file) as f:
+                    # Only read the first part to avoid loading the huge words array
+                    raw = f.read(2048)
+                    # Find title and author from the beginning of the JSON
+                    title_match = re.search(r'"title"\s*:\s*"([^"]*)"', raw)
+                    author_match = re.search(r'"author"\s*:\s*"([^"]*)"', raw)
+                    duration_match = re.search(r'"total_duration"\s*:\s*([\d.]+)', raw)
+                    word_count_match = re.search(r'"word_count"\s*:\s*(\d+)', raw)
+                    if title_match:
+                        meta["title"] = title_match.group(1)
+                    if author_match:
+                        meta["author"] = author_match.group(1)
+                    if duration_match:
+                        meta["total_duration"] = float(duration_match.group(1))
+                    if word_count_match:
+                        meta["word_count"] = int(word_count_match.group(1))
+            except Exception:
+                pass
+
+        books.append(meta)
+
+    return books
 
 
 class CORSHandler(http.server.SimpleHTTPRequestHandler):
@@ -34,7 +100,21 @@ class CORSHandler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
-        """Handle GET with support for Range requests (needed for audio seeking)."""
+        """Handle GET with support for Range requests and API endpoints."""
+
+        # ── API: List available books ──
+        if self.path == "/api/books":
+            books = scan_books()
+            data = json.dumps(books).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Cache-Control", "no-cache")
+            http.server.SimpleHTTPRequestHandler.end_headers(self)
+            self.wfile.write(data)
+            return
+
         # Parse the path
         path = self.translate_path(self.path)
 

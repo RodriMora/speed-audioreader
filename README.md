@@ -10,13 +10,14 @@ A synchronized audiobook speed reader that displays one word at a time, perfectl
 
 ## Features
 
+- **Book library** — browse and switch between multiple audiobooks
 - One-word-at-a-time display synced to audiobook audio
 - ORP (Optimal Recognition Point) focus letter highlighting
 - Adjustable playback speed (0.25× – 3.0×)
 - Progress bar with scrubbing / seeking
 - **Chapter navigation** — chapter list, prev/next buttons, progress bar markers
 - Multi-part audiobook support (seamless transitions)
-- Position memory (resumes where you left off)
+- Per-book position memory (resumes where you left off)
 - Customizable colors, font size, and focus letter color
 - Optional context words (previous/next words displayed faintly)
 - Keyboard-driven controls
@@ -34,6 +35,7 @@ A synchronized audiobook speed reader that displays one word at a time, perfectl
 | `R` | Reset to beginning |
 | `M` | Mute / Unmute |
 | `C` | Toggle context words |
+| `Esc` | Back to library |
 
 ## Setup
 
@@ -67,18 +69,9 @@ books/
     your-book.epub
 ```
 
-### 3. Configure and run preprocessing
+### 3. Preprocess your book
 
-Edit `preprocess.py` to point to your book files:
-
-```python
-BOOK_DIR = Path("books/your-book")
-AUDIO_FILES = [
-    BOOK_DIR / "your-book-part1.m4b",
-    BOOK_DIR / "your-book-part2.m4b",
-]
-EPUB_FILE = BOOK_DIR / "your-book.epub"
-```
+The preprocessing scripts auto-detect audio files and EPUB in the book directory. No configuration file editing needed.
 
 Choose your Whisper model based on your GPU:
 
@@ -98,22 +91,25 @@ source .venv/bin/activate
 # you may need to set LD_LIBRARY_PATH to your CUDA 12 libs:
 # export LD_LIBRARY_PATH=/path/to/cuda12/libs:$LD_LIBRARY_PATH
 
-python preprocess.py
+python preprocess.py books/your-book
 ```
 
 This will:
-- Extract text from the EPUB
-- Convert audio to WAV (temporary, auto-cleaned)
+- Auto-detect audio files and EPUB in the directory
+- Extract title/author from EPUB metadata
+- Convert audio to WAV (temporary)
 - Transcribe with word-level timestamps via Whisper
-- Output `app/data/alignment_compact.json`
+- Output alignment data to `books/your-book/`
 
 Then map chapter boundaries to audio timestamps:
 
 ```bash
-python map_chapters.py
+python map_chapters.py books/your-book
 ```
 
 This matches EPUB chapter text to the Whisper transcription to find where each chapter starts/ends in the audio. The chapter data is embedded into `alignment_compact.json`.
+
+You can add as many books as you want — just repeat for each book directory.
 
 ### 4. Run the reader
 
@@ -127,16 +123,21 @@ Open **http://localhost:8080/app/** in your browser.
 
 ```
 ├── app/
-│   ├── index.html          # Main web page
+│   ├── index.html          # Main web page (library + reader)
 │   ├── styles.css           # Dark theme UI
-│   ├── app.js               # Core reader + audio sync logic
-│   └── data/
-│       ├── alignment_compact.json  # Word-level timestamps + chapters
-│       └── chapters.json           # Raw chapter text from EPUB
-├── books/                   # Place audiobooks here (gitignored)
+│   └── app.js               # Core reader + library + audio sync logic
+├── books/                   # Place audiobooks here
+│   ├── your-book/
+│   │   ├── *.m4b / *.mp3   # Audio files (gitignored)
+│   │   ├── *.epub           # EPUB file (gitignored)
+│   │   ├── alignment_compact.json  # Generated word timestamps
+│   │   ├── chapters.json           # Generated chapter data
+│   │   └── meta.json               # Book metadata for library
+│   └── another-book/
+│       └── ...
 ├── preprocess.py            # Whisper transcription pipeline
 ├── map_chapters.py          # Chapter-to-timestamp mapper
-├── serve.py                 # HTTP server with Range request support
+├── serve.py                 # HTTP server with /api/books endpoint
 └── requirements.txt         # Python dependencies
 ```
 

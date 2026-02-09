@@ -26,7 +26,7 @@ html, body {
   color-scheme: dark;
 }
 
-canvas {
+canvas#stage {
   width: 100vw;
   height: 100vh;
   display: block;
@@ -597,6 +597,373 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .chapter-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* ── Library View ── */
+.library-view {
+  min-height: 100vh;
+  padding: 40px 20px 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow-y: auto;
+}
+
+.library-header {
+  text-align: center;
+  margin-bottom: 36px;
+}
+
+.library-title {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  margin-bottom: 6px;
+}
+
+.library-subtitle {
+  font-size: 14px;
+  opacity: 0.5;
+  font-weight: 500;
+}
+
+.library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  width: 100%;
+  max-width: 960px;
+}
+
+.book-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.book-card:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.book-card:active {
+  transform: translateY(0);
+}
+
+.book-card-title {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.book-card-author {
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0.6;
+}
+
+.book-card-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  opacity: 0.45;
+  margin-top: auto;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
+.book-card-meta span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.book-card-progress {
+  height: 3px;
+  background: var(--track);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.book-card-progress-fill {
+  height: 100%;
+  background: var(--red);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.library-empty {
+  text-align: center;
+  padding: 60px 20px;
+  opacity: 0.6;
+}
+
+.library-empty p {
+  margin-bottom: 12px;
+}
+
+.library-hint {
+  font-size: 13px;
+  opacity: 0.7;
+  line-height: 1.8;
+}
+
+.library-hint code {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.library-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 60px 20px;
+}
+
+.library-loading p {
+  font-size: 14px;
+  opacity: 0.5;
+  font-weight: 500;
+}
+
+/* ── Reader View ── */
+.reader-view {
+  position: relative;
+}
+
+.reader-view canvas {
+  width: 100vw;
+  height: 100vh;
+  display: block;
+}
+
+/* ── Bookmark Markers on Progress Bar ── */
+.bookmark-markers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.bookmark-marker {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 3px;
+  background: #f0c040;
+  opacity: 0.65;
+  border-radius: 1.5px;
+  transition: opacity 0.15s ease;
+  z-index: 1;
+}
+
+.progressBar:hover .bookmark-marker {
+  opacity: 0.9;
+}
+
+/* ── Bookmark Button ── */
+.bookmark-btn {
+  font-size: 1.3rem;
+  transition: all 0.15s ease;
+}
+
+.bookmark-btn.flash {
+  animation: bookmarkFlash 0.5s ease;
+}
+
+@keyframes bookmarkFlash {
+  0%   { transform: scale(1);   }
+  30%  { transform: scale(1.35); }
+  100% { transform: scale(1);   }
+}
+
+/* ── Bookmarks Modal ── */
+.bookmarks-modal {
+  max-height: 80vh;
+  width: min(520px, 96vw);
+}
+
+.bookmark-list {
+  list-style: none;
+  overflow-y: auto;
+  max-height: 55vh;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bookmark-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+}
+
+.bookmark-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--border);
+}
+
+.bookmark-item-icon {
+  font-size: 16px;
+  min-width: 24px;
+  text-align: center;
+  opacity: 0.7;
+}
+
+.bookmark-item-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bookmark-item-label {
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bookmark-item-detail {
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.45;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bookmark-item-time {
+  font-size: 12px;
+  font-weight: 500;
+  opacity: 0.5;
+  font-variant-numeric: tabular-nums;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  white-space: nowrap;
+}
+
+.bookmark-item-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.bookmark-item:hover .bookmark-item-actions {
+  opacity: 1;
+}
+
+.bookmark-action-btn {
+  background: none !important;
+  border: none !important;
+  padding: 2px 6px;
+  font-size: 14px;
+  min-height: unset;
+  min-width: unset;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
+}
+
+.bookmark-action-btn:hover {
+  opacity: 1;
+  background: none !important;
+}
+
+.bookmark-empty {
+  text-align: center;
+  padding: 30px 20px;
+  opacity: 0.5;
+}
+
+.bookmark-empty p {
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.bookmark-hint {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.bookmark-hint kbd {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  border: 1px solid var(--border);
+}
+
+/* ── Bookmark Name Input Modal ── */
+.bookmark-name-modal {
+  width: min(400px, 92vw);
+}
+
+.bookmark-name-preview {
+  font-size: 12px;
+  opacity: 0.55;
+  font-weight: 500;
+  padding: 4px 0;
+}
+
+.bookmark-name-input {
+  width: 100%;
+  background: transparent;
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.bookmark-name-input:focus {
+  border-color: rgba(240, 192, 64, 0.5);
+}
+
+/* ── Scrollbar styling for bookmark list ── */
+.bookmark-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.bookmark-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.bookmark-list::-webkit-scrollbar-thumb {
+  background: var(--track);
+  border-radius: 3px;
+}
+
+.bookmark-list::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.25);
 }
 

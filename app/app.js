@@ -20,6 +20,12 @@
   let chapters = [];        // Array of { title, start_time, end_time, start_word_index, end_word_index }
   let currentChapterIndex = -1;
 
+  // Current book
+  let currentBookSlug = null;
+
+  // Bookmarks
+  let bookmarks = [];  // Array of { id, position, label, word, chapter, createdAt }
+
   // Settings
   let playbackSpeed = 1.0;
   let volume = 1.0;
@@ -40,6 +46,14 @@
   // ══════════════════════════════════════════════════════════════════════════
   // DOM
   // ══════════════════════════════════════════════════════════════════════════
+
+  // Views
+  const libraryView = document.getElementById("libraryView");
+  const readerView = document.getElementById("readerView");
+  const libraryGrid = document.getElementById("libraryGrid");
+  const libraryEmpty = document.getElementById("libraryEmpty");
+  const libraryLoading = document.getElementById("libraryLoading");
+  const libraryBtn = document.getElementById("libraryBtn");
 
   const canvas = document.getElementById("stage");
   const ctx = canvas.getContext("2d");
@@ -93,6 +107,21 @@
   const prevChapterBtn = document.getElementById("prevChapterBtn");
   const nextChapterBtn = document.getElementById("nextChapterBtn");
   const chapterMarkers = document.getElementById("chapterMarkers");
+
+  // Bookmark DOM
+  const bookmarkBtn = document.getElementById("bookmarkBtn");
+  const bookmarksListBtn = document.getElementById("bookmarksListBtn");
+  const bookmarksBackdrop = document.getElementById("bookmarksBackdrop");
+  const closeBookmarksBtn = document.getElementById("closeBookmarks");
+  const bookmarkList = document.getElementById("bookmarkList");
+  const bookmarkEmpty = document.getElementById("bookmarkEmpty");
+  const bookmarkMarkers = document.getElementById("bookmarkMarkers");
+  const bookmarkNameBackdrop = document.getElementById("bookmarkNameBackdrop");
+  const closeBookmarkNameBtn = document.getElementById("closeBookmarkName");
+  const bookmarkNameInput = document.getElementById("bookmarkNameInput");
+  const bookmarkNamePreview = document.getElementById("bookmarkNamePreview");
+  const bookmarkNameCancel = document.getElementById("bookmarkNameCancel");
+  const bookmarkNameSave = document.getElementById("bookmarkNameSave");
 
   // ══════════════════════════════════════════════════════════════════════════
   // Helpers
@@ -235,6 +264,210 @@
       marker.title = ch.title;
       chapterMarkers.appendChild(marker);
     });
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // Bookmarks
+  // ══════════════════════════════════════════════════════════════════════════
+
+  function loadBookmarks(slug) {
+    try {
+      const all = JSON.parse(localStorage.getItem("sar.bookmarks") || "{}");
+      bookmarks = Array.isArray(all[slug]) ? all[slug] : [];
+    } catch { bookmarks = []; }
+  }
+
+  function saveBookmarks() {
+    if (!currentBookSlug) return;
+    try {
+      const all = JSON.parse(localStorage.getItem("sar.bookmarks") || "{}");
+      all[currentBookSlug] = bookmarks;
+      localStorage.setItem("sar.bookmarks", JSON.stringify(all));
+    } catch {}
+  }
+
+  function getBookmarkCount(slug) {
+    try {
+      const all = JSON.parse(localStorage.getItem("sar.bookmarks") || "{}");
+      return Array.isArray(all[slug]) ? all[slug].length : 0;
+    } catch { return 0; }
+  }
+
+  function addBookmark(position, label) {
+    const wordAtPos = words[findWordAtTime(position)];
+    const wordText = wordAtPos ? wordAtPos[0] : "";
+    const ch = chapters.length ? chapters[findChapterAtTime(position)] : null;
+    const chapterTitle = ch ? ch.title : "";
+
+    // Gather a few surrounding words for context
+    const idx = findWordAtTime(position);
+    const contextWords = [];
+    for (let i = Math.max(0, idx - 2); i < Math.min(words.length, idx + 5); i++) {
+      contextWords.push(words[i][0]);
+    }
+
+    const bookmark = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      position,
+      label: label || "",
+      word: wordText,
+      context: contextWords.join(" "),
+      chapter: chapterTitle,
+      createdAt: Date.now(),
+    };
+
+    bookmarks.push(bookmark);
+    bookmarks.sort((a, b) => a.position - b.position);
+    saveBookmarks();
+    buildBookmarkMarkers();
+    return bookmark;
+  }
+
+  function deleteBookmark(id) {
+    bookmarks = bookmarks.filter(b => b.id !== id);
+    saveBookmarks();
+    buildBookmarkMarkers();
+    buildBookmarkList();
+  }
+
+  function renameBookmark(id, newLabel) {
+    const bm = bookmarks.find(b => b.id === id);
+    if (bm) {
+      bm.label = newLabel;
+      saveBookmarks();
+      buildBookmarkList();
+    }
+  }
+
+  function buildBookmarkMarkers() {
+    if (!bookmarkMarkers || totalDuration <= 0) return;
+    bookmarkMarkers.innerHTML = "";
+
+    bookmarks.forEach(bm => {
+      const pct = (bm.position / totalDuration) * 100;
+      const marker = document.createElement("div");
+      marker.className = "bookmark-marker";
+      marker.style.left = `${pct}%`;
+      marker.title = bm.label || `Bookmark at ${formatTime(bm.position)}`;
+      bookmarkMarkers.appendChild(marker);
+    });
+  }
+
+  function buildBookmarkList() {
+    if (!bookmarkList) return;
+    bookmarkList.innerHTML = "";
+
+    if (bookmarks.length === 0) {
+      bookmarkEmpty.style.display = "";
+      return;
+    }
+
+    bookmarkEmpty.style.display = "none";
+
+    bookmarks.forEach(bm => {
+      const li = document.createElement("li");
+      li.className = "bookmark-item";
+      li.dataset.id = bm.id;
+
+      const displayLabel = bm.label || `Bookmark`;
+      const detail = bm.chapter
+        ? `${bm.chapter} — "...${bm.context || bm.word}..."`
+        : `"...${bm.context || bm.word}..."`;
+
+      li.innerHTML = `
+        <span class="bookmark-item-icon">🔖</span>
+        <div class="bookmark-item-info">
+          <span class="bookmark-item-label">${displayLabel}</span>
+          <span class="bookmark-item-detail">${detail}</span>
+        </div>
+        <span class="bookmark-item-time">${formatTime(bm.position)}</span>
+        <div class="bookmark-item-actions">
+          <button class="bookmark-action-btn" data-action="rename" title="Rename">✏️</button>
+          <button class="bookmark-action-btn" data-action="delete" title="Delete">🗑️</button>
+        </div>
+      `;
+
+      // Click on item body to seek
+      li.addEventListener("click", (e) => {
+        // Don't seek if clicking an action button
+        if (e.target.closest(".bookmark-action-btn")) return;
+        seekToGlobalTime(bm.position);
+        bookmarksBackdrop.style.display = "none";
+      });
+
+      // Action buttons
+      li.querySelector('[data-action="delete"]').addEventListener("click", (e) => {
+        e.stopPropagation();
+        deleteBookmark(bm.id);
+      });
+
+      li.querySelector('[data-action="rename"]').addEventListener("click", (e) => {
+        e.stopPropagation();
+        promptRenameBookmark(bm);
+      });
+
+      bookmarkList.appendChild(li);
+    });
+  }
+
+  // Pending bookmark data for the name input modal
+  let pendingBookmarkPosition = null;
+  let pendingBookmarkRenameId = null;
+
+  function promptAddBookmark() {
+    if (!audioReady) return;
+    const pos = getCurrentAudioTime();
+    pendingBookmarkPosition = pos;
+    pendingBookmarkRenameId = null;
+
+    const ch = chapters.length ? chapters[findChapterAtTime(pos)] : null;
+    const chName = ch ? ch.title : "";
+    const idx = findWordAtTime(pos);
+    const contextWords = [];
+    for (let i = Math.max(0, idx - 2); i < Math.min(words.length, idx + 5); i++) {
+      contextWords.push(words[i][0]);
+    }
+    bookmarkNamePreview.textContent = `${formatTime(pos)}${chName ? " · " + chName : ""} — "${contextWords.join(" ")}"`;
+    bookmarkNameInput.value = "";
+    bookmarkNameBackdrop.style.display = "flex";
+    setTimeout(() => bookmarkNameInput.focus(), 50);
+  }
+
+  function promptRenameBookmark(bm) {
+    pendingBookmarkPosition = null;
+    pendingBookmarkRenameId = bm.id;
+    bookmarkNamePreview.textContent = `${formatTime(bm.position)}${bm.chapter ? " · " + bm.chapter : ""}`;
+    bookmarkNameInput.value = bm.label || "";
+    bookmarkNameBackdrop.style.display = "flex";
+    setTimeout(() => { bookmarkNameInput.focus(); bookmarkNameInput.select(); }, 50);
+  }
+
+  function confirmBookmarkName() {
+    const label = bookmarkNameInput.value.trim();
+    bookmarkNameBackdrop.style.display = "none";
+
+    if (pendingBookmarkRenameId) {
+      renameBookmark(pendingBookmarkRenameId, label);
+      pendingBookmarkRenameId = null;
+    } else if (pendingBookmarkPosition !== null) {
+      addBookmark(pendingBookmarkPosition, label);
+      pendingBookmarkPosition = null;
+
+      // Flash the bookmark button
+      if (bookmarkBtn) {
+        bookmarkBtn.classList.remove("flash");
+        void bookmarkBtn.offsetWidth; // Trigger reflow
+        bookmarkBtn.classList.add("flash");
+        setTimeout(() => bookmarkBtn.classList.remove("flash"), 600);
+      }
+
+      setStatus(`Bookmark added at ${formatTime(getCurrentAudioTime())}`);
+    }
+  }
+
+  function openBookmarksList() {
+    buildBookmarkList();
+    bookmarksBackdrop.style.display = "flex";
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -553,19 +786,29 @@
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // Settings persistence
+  // Settings persistence (global settings + per-book positions)
   // ══════════════════════════════════════════════════════════════════════════
 
   function saveSettings() {
     try {
+      // Save global settings (colors, font, speed, volume)
       localStorage.setItem("sar.settings", JSON.stringify({
         colors,
         fontScale,
         playbackSpeed,
         volume,
         showContext,
-        lastPosition: getCurrentAudioTime(),
       }));
+
+      // Save per-book position
+      if (currentBookSlug && audioReady) {
+        const positions = JSON.parse(localStorage.getItem("sar.positions") || "{}");
+        positions[currentBookSlug] = {
+          position: getCurrentAudioTime(),
+          timestamp: Date.now(),
+        };
+        localStorage.setItem("sar.positions", JSON.stringify(positions));
+      }
     } catch {}
   }
 
@@ -582,12 +825,21 @@
     } catch {}
   }
 
-  function getLastPosition() {
+  function getLastPosition(slug) {
     try {
-      const raw = localStorage.getItem("sar.settings");
-      if (!raw) return 0;
-      const s = JSON.parse(raw);
-      return s.lastPosition || 0;
+      const positions = JSON.parse(localStorage.getItem("sar.positions") || "{}");
+      const entry = positions[slug || currentBookSlug];
+      return entry ? entry.position || 0 : 0;
+    } catch { return 0; }
+  }
+
+  function getBookProgress(slug) {
+    // Returns percentage 0-100 of how far through a book the user is
+    try {
+      const positions = JSON.parse(localStorage.getItem("sar.positions") || "{}");
+      const entry = positions[slug];
+      if (!entry || !entry.position) return 0;
+      return entry.position;
     } catch { return 0; }
   }
 
@@ -597,14 +849,172 @@
   }, 5000);
 
   // ══════════════════════════════════════════════════════════════════════════
+  // Library
+  // ══════════════════════════════════════════════════════════════════════════
+
+  async function loadLibrary() {
+    libraryLoading.style.display = "";
+    libraryEmpty.style.display = "none";
+    libraryGrid.innerHTML = "";
+
+    try {
+      const resp = await fetch("/api/books");
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const books = await resp.json();
+
+      libraryLoading.style.display = "none";
+
+      if (books.length === 0) {
+        libraryEmpty.style.display = "";
+        return;
+      }
+
+      books.forEach(book => {
+        const card = document.createElement("div");
+        card.className = "book-card";
+        card.dataset.slug = book.slug;
+
+        const durationStr = book.total_duration
+          ? formatTime(book.total_duration)
+          : "";
+        const wordStr = book.word_count
+          ? `${book.word_count.toLocaleString()} words`
+          : "";
+
+        // Check if user has progress on this book
+        const savedPos = getBookProgress(book.slug);
+        const progressPct = book.total_duration && savedPos > 0
+          ? Math.min(100, (savedPos / book.total_duration) * 100)
+          : 0;
+
+        const bmCount = getBookmarkCount(book.slug);
+
+        let metaHtml = "";
+        if (durationStr || wordStr) {
+          metaHtml = `<div class="book-card-meta">`;
+          if (durationStr) metaHtml += `<span>${durationStr}</span>`;
+          if (wordStr) metaHtml += `<span>${wordStr}</span>`;
+          if (book.has_chapters) metaHtml += `<span>Chapters</span>`;
+          if (bmCount > 0) metaHtml += `<span>🔖 ${bmCount}</span>`;
+          metaHtml += `</div>`;
+        }
+
+        let progressHtml = "";
+        if (progressPct > 0) {
+          progressHtml = `
+            <div class="book-card-progress">
+              <div class="book-card-progress-fill" style="width:${progressPct.toFixed(1)}%"></div>
+            </div>`;
+        }
+
+        card.innerHTML = `
+          <div class="book-card-title">${book.title}</div>
+          <div class="book-card-author">${book.author}</div>
+          ${metaHtml}
+          ${progressHtml}
+        `;
+
+        card.addEventListener("click", () => openBook(book.slug));
+        libraryGrid.appendChild(card);
+      });
+
+    } catch (err) {
+      console.error("Failed to load library:", err);
+      libraryLoading.style.display = "none";
+      libraryEmpty.style.display = "";
+      libraryEmpty.querySelector("p").textContent = `Error loading library: ${err.message}`;
+    }
+  }
+
+  function showLibrary() {
+    // Stop playback if playing
+    if (isPlaying) pause();
+
+    // Save position before leaving
+    if (currentBookSlug && audioReady) saveSettings();
+
+    // Clean up audio resources
+    cleanupReader();
+
+    // Switch views
+    readerView.style.display = "none";
+    libraryView.style.display = "";
+    document.body.style.overflow = "auto";
+
+    // Refresh library to show updated progress
+    loadLibrary();
+  }
+
+  function cleanupReader() {
+    stopSyncLoop();
+    // Stop and release all audio elements
+    for (const part of audioParts) {
+      part.audio.pause();
+      part.audio.src = "";
+      part.audio.load();
+    }
+    audioParts = [];
+    words = [];
+    chapters = [];
+    currentIndex = 0;
+    currentWord = "";
+    activePartIndex = 0;
+    totalDuration = 0;
+    currentChapterIndex = -1;
+    audioReady = false;
+    isPlaying = false;
+
+    // Reset chapter UI
+    if (chaptersBtn) chaptersBtn.style.display = "none";
+    if (prevChapterBtn) prevChapterBtn.style.display = "none";
+    if (nextChapterBtn) nextChapterBtn.style.display = "none";
+    if (chapterList) chapterList.innerHTML = "";
+    if (chapterMarkers) chapterMarkers.innerHTML = "";
+    if (chapterNameEl) chapterNameEl.textContent = "";
+
+    // Reset bookmark state and UI
+    bookmarks = [];
+    if (bookmarkMarkers) bookmarkMarkers.innerHTML = "";
+    if (bookmarkList) bookmarkList.innerHTML = "";
+
+    // Reset progress UI
+    progressFill.style.width = "0%";
+    currentTimeEl.textContent = "0:00";
+    timeLeftEl.textContent = "0:00";
+    wordCounterEl.textContent = "";
+    updatePlayPauseVisual();
+  }
+
+  async function openBook(slug) {
+    currentBookSlug = slug;
+
+    // Switch to reader view
+    libraryView.style.display = "none";
+    readerView.style.display = "";
+    document.body.style.overflow = "hidden";
+
+    // Show loading overlay
+    loadingOverlay.classList.remove("hidden");
+    loadingText.textContent = "Loading alignment data...";
+
+    // Resize canvas for reader
+    resize();
+
+    // Load book data
+    await loadAlignmentData(slug);
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
   // Data Loading
   // ══════════════════════════════════════════════════════════════════════════
 
-  async function loadAlignmentData() {
+  async function loadAlignmentData(slug) {
     loadingText.textContent = "Loading alignment data...";
 
     try {
-      const resp = await fetch("data/alignment_compact.json");
+      // Load from the book's directory
+      const dataUrl = `../books/${slug}/alignment_compact.json`;
+      const resp = await fetch(dataUrl);
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const data = await resp.json();
 
@@ -621,6 +1031,10 @@
         if (prevChapterBtn) prevChapterBtn.style.display = "";
         if (nextChapterBtn) nextChapterBtn.style.display = "";
       }
+
+      // Load bookmarks for this book
+      loadBookmarks(slug);
+      buildBookmarkMarkers();
 
       if (words.length > 0) {
         currentWord = words[0][0];
@@ -683,8 +1097,8 @@
       audioReady = true;
       loadingOverlay.classList.add("hidden");
 
-      // Restore last position if available
-      const lastPos = getLastPosition();
+      // Restore last position for this book
+      const lastPos = getLastPosition(slug);
       if (lastPos > 5) {
         seekToGlobalTime(lastPos);
         setStatus(`Resumed at ${formatTime(lastPos)} — Space to play`);
@@ -907,11 +1321,84 @@
   if (nextChapterBtn) nextChapterBtn.onclick = nextChapter;
 
   // ══════════════════════════════════════════════════════════════════════════
+  // Bookmark UI Wiring
+  // ══════════════════════════════════════════════════════════════════════════
+
+  if (bookmarkBtn) {
+    bookmarkBtn.onclick = promptAddBookmark;
+  }
+
+  if (bookmarksListBtn) {
+    bookmarksListBtn.onclick = openBookmarksList;
+  }
+
+  if (closeBookmarksBtn) {
+    closeBookmarksBtn.onclick = () => bookmarksBackdrop.style.display = "none";
+  }
+
+  if (bookmarksBackdrop) {
+    bookmarksBackdrop.addEventListener("click", (e) => {
+      if (e.target === bookmarksBackdrop) bookmarksBackdrop.style.display = "none";
+    });
+  }
+
+  if (closeBookmarkNameBtn) {
+    closeBookmarkNameBtn.onclick = () => bookmarkNameBackdrop.style.display = "none";
+  }
+
+  if (bookmarkNameCancel) {
+    bookmarkNameCancel.onclick = () => bookmarkNameBackdrop.style.display = "none";
+  }
+
+  if (bookmarkNameSave) {
+    bookmarkNameSave.onclick = confirmBookmarkName;
+  }
+
+  if (bookmarkNameInput) {
+    bookmarkNameInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        confirmBookmarkName();
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        bookmarkNameBackdrop.style.display = "none";
+      }
+    });
+  }
+
+  if (bookmarkNameBackdrop) {
+    bookmarkNameBackdrop.addEventListener("click", (e) => {
+      if (e.target === bookmarkNameBackdrop) bookmarkNameBackdrop.style.display = "none";
+    });
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // Library Button
+  // ══════════════════════════════════════════════════════════════════════════
+
+  if (libraryBtn) {
+    libraryBtn.onclick = showLibrary;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
   // Keyboard Shortcuts
   // ══════════════════════════════════════════════════════════════════════════
 
   window.addEventListener("keydown", (e) => {
     if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+
+    // Escape always goes back to library (from reader view)
+    if (e.code === "Escape") {
+      if (readerView.style.display !== "none") {
+        e.preventDefault();
+        showLibrary();
+        return;
+      }
+    }
+
+    // Reader-only shortcuts
+    if (readerView.style.display === "none") return;
 
     switch (e.code) {
       case "Space":
@@ -972,6 +1459,15 @@
           }
         }
         break;
+      case "KeyB":
+        if (e.shiftKey) {
+          // Shift+B opens bookmarks list
+          openBookmarksList();
+        } else {
+          // B adds a bookmark at current position
+          promptAddBookmark();
+        }
+        break;
     }
   });
 
@@ -984,9 +1480,12 @@
   applySpeed(playbackSpeed);
   applyVolume(volume);
 
-  resize();
-  window.addEventListener("resize", resize);
+  window.addEventListener("resize", () => {
+    if (readerView.style.display !== "none") {
+      resize();
+    }
+  });
 
-  // Start loading
-  loadAlignmentData();
+  // Start with the library view
+  loadLibrary();
 })();

@@ -8,6 +8,32 @@
 </head>
 
 <body data-theme="dark">
+
+<!-- ══════════ Library View ══════════ -->
+<div id="libraryView" class="library-view">
+  <div class="library-header">
+    <h1 class="library-title">Speed AudioReader</h1>
+    <p class="library-subtitle">Select a book to start reading</p>
+  </div>
+  <div id="libraryGrid" class="library-grid">
+    <!-- Book cards inserted by JS -->
+  </div>
+  <div id="libraryEmpty" class="library-empty" style="display:none">
+    <p>No books found.</p>
+    <p class="library-hint">
+      Add a book to the <code>books/</code> directory and run:<br>
+      <code>python preprocess.py books/your-book</code><br>
+      <code>python map_chapters.py books/your-book</code>
+    </p>
+  </div>
+  <div id="libraryLoading" class="library-loading">
+    <div class="spinner"></div>
+    <p>Scanning library...</p>
+  </div>
+</div>
+
+<!-- ══════════ Reader View ══════════ -->
+<div id="readerView" class="reader-view" style="display:none">
 <canvas id="stage"></canvas>
 
 <!-- Progress / Waveform bar -->
@@ -22,6 +48,7 @@
          aria-label="Progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
       <div id="progressFill" class="progressFill" style="width:0%"></div>
       <div id="chapterMarkers" class="chapter-markers"></div>
+      <div id="bookmarkMarkers" class="bookmark-markers"></div>
     </div>
   </div>
   <div class="progressBottomRow">
@@ -34,6 +61,7 @@
 <!-- Controls -->
 <div class="controls">
   <div class="playbackRow">
+    <button id="libraryBtn" class="icon-btn" title="Back to Library (Esc)" aria-label="Library">📚</button>
     <button id="chaptersBtn" class="icon-btn chapters-btn" title="Chapters (L)" aria-label="Chapters" style="display:none">☰</button>
     <button id="prevChapterBtn" class="icon-btn" aria-label="Previous chapter" title="Prev chapter (P)" style="display:none">⏮</button>
     <button id="resetBtn" class="icon-btn" aria-label="Reset to beginning" title="Reset">⟲</button>
@@ -44,6 +72,8 @@
     </button>
     <button id="fwd10Btn" class="icon-btn" aria-label="Forward 10 seconds" title="+10s">⏩</button>
     <button id="nextChapterBtn" class="icon-btn" aria-label="Next chapter" title="Next chapter (N)" style="display:none">⏭</button>
+    <button id="bookmarkBtn" class="icon-btn bookmark-btn" title="Add bookmark (B)" aria-label="Add bookmark">🔖</button>
+    <button id="bookmarksListBtn" class="icon-btn" title="Bookmarks (Shift+B)" aria-label="Bookmarks list">📑</button>
     <button id="settingsBtn" class="icon-btn settings-btn" title="Settings" aria-label="Settings">⚙</button>
   </div>
 
@@ -61,6 +91,7 @@
     <span id="volumeLabel" class="speed-value">100%</span>
   </div>
 </div>
+</div><!-- /readerView -->
 
 <!-- Settings Modal -->
 <div id="settingsBackdrop" class="modal-backdrop">
@@ -119,8 +150,35 @@
   </div>
 </div>
 
-<!-- Loading overlay -->
-<div id="loadingOverlay" class="loading-overlay">
+<!-- Bookmarks Modal -->
+<div id="bookmarksBackdrop" class="modal-backdrop">
+  <div class="modal bookmarks-modal">
+    <button class="modalCloseX" id="closeBookmarks" aria-label="Close bookmarks">×</button>
+    <strong>Bookmarks</strong>
+    <ul id="bookmarkList" class="bookmark-list"></ul>
+    <div class="bookmark-empty" id="bookmarkEmpty">
+      <p>No bookmarks yet.</p>
+      <p class="bookmark-hint">Press <kbd>B</kbd> while reading to add one.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Bookmark Name Input Modal -->
+<div id="bookmarkNameBackdrop" class="modal-backdrop">
+  <div class="modal bookmark-name-modal">
+    <button class="modalCloseX" id="closeBookmarkName" aria-label="Cancel">×</button>
+    <strong>Name this bookmark</strong>
+    <div class="bookmark-name-preview" id="bookmarkNamePreview"></div>
+    <input type="text" id="bookmarkNameInput" class="bookmark-name-input" placeholder="e.g. Favourite passage, Left off here..." maxlength="80" autocomplete="off">
+    <div class="modalRow">
+      <button id="bookmarkNameCancel">Cancel</button>
+      <button id="bookmarkNameSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Loading overlay (used when loading a book in reader view) -->
+<div id="loadingOverlay" class="loading-overlay hidden">
   <div class="loading-content">
     <div class="spinner"></div>
     <p id="loadingText">Loading alignment data...</p>

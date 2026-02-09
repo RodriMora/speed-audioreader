@@ -11,6 +11,12 @@ books/**/*.pdf
 !books/*/
 !books/*/.gitkeep
 
+# Generated alignment/chapter data in book directories (large files)
+books/**/alignment.json
+books/**/alignment_compact.json
+books/**/chapters.json
+books/**/meta.json
+
 # Temporary audio conversions
 *.wav
 
@@ -23,8 +29,9 @@ __pycache__/
 dist/
 build/
 
-# Generated data (large files, regenerate with preprocess.py)
+# Generated data — legacy location (use books/<slug>/ instead)
 app/data/alignment.json
+app/data/alignment_compact.json
 app/data/chapters.json
 
 # OS
