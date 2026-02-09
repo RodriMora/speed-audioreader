@@ -1,0 +1,41 @@
+# Audiobook and ebook files (copyrighted content)
+books/**/*.m4b
+books/**/*.m4a
+books/**/*.mp3
+books/**/*.mp4
+books/**/*.epub
+books/**/*.pdf
+
+# Keep the books directory structure
+!books/
+!books/*/
+!books/*/.gitkeep
+
+# Temporary audio conversions
+*.wav
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Generated data (large files, regenerate with preprocess.py)
+app/data/alignment.json
+app/data/chapters.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Reference files (saved webpage)
+Speed Reader*
