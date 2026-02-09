@@ -471,6 +471,135 @@ input[type="range"]::-moz-range-thumb {
   }
 }
 
+/* ── Chapter Markers on Progress Bar ── */
+.progressBarWrap {
+  position: relative;
+}
+
+.chapter-markers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.chapter-marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--fg);
+  opacity: 0.25;
+  border-radius: 1px;
+  transition: opacity 0.15s ease;
+}
+
+.progressBar:hover .chapter-marker {
+  opacity: 0.45;
+}
+
+/* ── Chapter Name (bottom row) ── */
+.chapter-name {
+  font-weight: 600;
+  font-size: 11px;
+  opacity: 0.7;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+}
+
+/* ── Chapter Button ── */
+.chapters-btn {
+  font-size: 1.3rem;
+}
+
+/* ── Chapters Modal ── */
+.chapters-modal {
+  max-height: 80vh;
+  width: min(520px, 96vw);
+}
+
+.chapter-list {
+  list-style: none;
+  overflow-y: auto;
+  max-height: 60vh;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.chapter-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+}
+
+.chapter-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--border);
+}
+
+.chapter-item.active {
+  background: rgba(255, 59, 59, 0.1);
+  border-color: rgba(255, 59, 59, 0.25);
+}
+
+.chapter-item.active .chapter-number {
+  color: var(--red);
+}
+
+.chapter-number {
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.5;
+  min-width: 24px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.chapter-title {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chapter-time {
+  font-size: 12px;
+  font-weight: 500;
+  opacity: 0.5;
+  font-variant-numeric: tabular-nums;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+/* ── Scrollbar styling for chapter list ── */
+.chapter-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chapter-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chapter-list::-webkit-scrollbar-thumb {
+  background: var(--track);
+  border-radius: 3px;
+}
+
+.chapter-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
 /* ── Hidden utility ── */
 [hidden] {
   display: none !important;

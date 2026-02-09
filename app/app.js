@@ -16,6 +16,10 @@
   let activePartIndex = 0;
   let totalDuration = 0;
 
+  // Chapter state
+  let chapters = [];        // Array of { title, start_time, end_time, start_word_index, end_word_index }
+  let currentChapterIndex = -1;
+
   // Settings
   let playbackSpeed = 1.0;
   let volume = 1.0;
@@ -80,6 +84,16 @@
   const loadingOverlay = document.getElementById("loadingOverlay");
   const loadingText = document.getElementById("loadingText");
 
+  // Chapter DOM
+  const chaptersBtn = document.getElementById("chaptersBtn");
+  const chaptersBackdrop = document.getElementById("chaptersBackdrop");
+  const closeChaptersBtn = document.getElementById("closeChapters");
+  const chapterList = document.getElementById("chapterList");
+  const chapterNameEl = document.getElementById("chapterName");
+  const prevChapterBtn = document.getElementById("prevChapterBtn");
+  const nextChapterBtn = document.getElementById("nextChapterBtn");
+  const chapterMarkers = document.getElementById("chapterMarkers");
+
   // ══════════════════════════════════════════════════════════════════════════
   // Helpers
   // ══════════════════════════════════════════════════════════════════════════
@@ -123,6 +137,104 @@
 
   function setStatus(msg) {
     statusMsgEl.textContent = msg || "";
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // Chapter Navigation
+  // ══════════════════════════════════════════════════════════════════════════
+
+  function findChapterAtTime(time) {
+    if (!chapters.length) return -1;
+    for (let i = chapters.length - 1; i >= 0; i--) {
+      if (time >= chapters[i].start_time) return i;
+    }
+    return 0;
+  }
+
+  function updateCurrentChapter(time) {
+    if (!chapters.length) return;
+    const idx = findChapterAtTime(time);
+    if (idx !== currentChapterIndex) {
+      currentChapterIndex = idx;
+      const ch = chapters[idx];
+      if (ch && chapterNameEl) {
+        chapterNameEl.textContent = ch.title;
+        chapterNameEl.title = ch.title;
+      }
+      updateChapterListHighlight();
+    }
+  }
+
+  function seekToChapter(index) {
+    if (index < 0 || index >= chapters.length) return;
+    seekToGlobalTime(chapters[index].start_time);
+    updateCurrentChapter(chapters[index].start_time);
+  }
+
+  function prevChapter() {
+    if (!chapters.length) return;
+    // If we're more than 3 seconds into the current chapter, go to its start
+    const time = getCurrentAudioTime();
+    const ch = chapters[currentChapterIndex];
+    if (ch && time - ch.start_time > 3) {
+      seekToChapter(currentChapterIndex);
+    } else {
+      seekToChapter(Math.max(0, currentChapterIndex - 1));
+    }
+  }
+
+  function nextChapter() {
+    if (!chapters.length) return;
+    seekToChapter(Math.min(chapters.length - 1, currentChapterIndex + 1));
+  }
+
+  function buildChapterList() {
+    if (!chapterList || !chapters.length) return;
+    chapterList.innerHTML = "";
+
+    chapters.forEach((ch, i) => {
+      const li = document.createElement("li");
+      li.className = "chapter-item";
+      li.dataset.index = i;
+
+      const duration = ch.end_time - ch.start_time;
+
+      li.innerHTML = `
+        <span class="chapter-number">${i + 1}</span>
+        <span class="chapter-title">${ch.title}</span>
+        <span class="chapter-time">${formatTime(ch.start_time)}</span>
+      `;
+
+      li.addEventListener("click", () => {
+        seekToChapter(i);
+        chaptersBackdrop.style.display = "none";
+      });
+
+      chapterList.appendChild(li);
+    });
+  }
+
+  function updateChapterListHighlight() {
+    if (!chapterList) return;
+    const items = chapterList.querySelectorAll(".chapter-item");
+    items.forEach((item, i) => {
+      item.classList.toggle("active", i === currentChapterIndex);
+    });
+  }
+
+  function buildChapterMarkers() {
+    if (!chapterMarkers || !chapters.length || totalDuration <= 0) return;
+    chapterMarkers.innerHTML = "";
+
+    chapters.forEach((ch, i) => {
+      if (i === 0) return; // Skip first marker (at the very start)
+      const pct = (ch.start_time / totalDuration) * 100;
+      const marker = document.createElement("div");
+      marker.className = "chapter-marker";
+      marker.style.left = `${pct}%`;
+      marker.title = ch.title;
+      chapterMarkers.appendChild(marker);
+    });
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -290,6 +402,8 @@
     currentTimeEl.textContent = formatTime(time);
     timeLeftEl.textContent = `-${formatTime(Math.max(0, totalDuration - time))}`;
     wordCounterEl.textContent = `Word ${currentIndex + 1} / ${words.length.toLocaleString()}`;
+
+    updateCurrentChapter(time);
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -497,6 +611,16 @@
       bookTitleEl.textContent = `${data.title} — ${data.author}`;
       words = data.words; // [[word, start, end], ...]
       totalDuration = data.total_duration;
+
+      // Load chapters if available
+      if (data.chapters && data.chapters.length) {
+        chapters = data.chapters;
+        buildChapterList();
+        buildChapterMarkers();
+        if (chaptersBtn) chaptersBtn.style.display = "";
+        if (prevChapterBtn) prevChapterBtn.style.display = "";
+        if (nextChapterBtn) nextChapterBtn.style.display = "";
+      }
 
       if (words.length > 0) {
         currentWord = words[0][0];
@@ -754,6 +878,35 @@
   };
 
   // ══════════════════════════════════════════════════════════════════════════
+  // Chapter UI Wiring
+  // ══════════════════════════════════════════════════════════════════════════
+
+  if (chaptersBtn) {
+    chaptersBtn.onclick = () => {
+      chaptersBackdrop.style.display = "flex";
+      updateChapterListHighlight();
+      // Scroll active chapter into view
+      requestAnimationFrame(() => {
+        const active = chapterList.querySelector(".chapter-item.active");
+        if (active) active.scrollIntoView({ block: "center", behavior: "smooth" });
+      });
+    };
+  }
+
+  if (closeChaptersBtn) {
+    closeChaptersBtn.onclick = () => chaptersBackdrop.style.display = "none";
+  }
+
+  if (chaptersBackdrop) {
+    chaptersBackdrop.addEventListener("click", (e) => {
+      if (e.target === chaptersBackdrop) chaptersBackdrop.style.display = "none";
+    });
+  }
+
+  if (prevChapterBtn) prevChapterBtn.onclick = prevChapter;
+  if (nextChapterBtn) nextChapterBtn.onclick = nextChapter;
+
+  // ══════════════════════════════════════════════════════════════════════════
   // Keyboard Shortcuts
   // ══════════════════════════════════════════════════════════════════════════
 
@@ -799,6 +952,25 @@
       case "BracketRight":
         e.preventDefault();
         seekToGlobalTime(getCurrentAudioTime() + 30);
+        break;
+      case "KeyP":
+        prevChapter();
+        break;
+      case "KeyN":
+        nextChapter();
+        break;
+      case "KeyL":
+        if (chaptersBackdrop && chapters.length) {
+          const isOpen = chaptersBackdrop.style.display === "flex";
+          chaptersBackdrop.style.display = isOpen ? "none" : "flex";
+          if (!isOpen) {
+            updateChapterListHighlight();
+            requestAnimationFrame(() => {
+              const active = chapterList.querySelector(".chapter-item.active");
+              if (active) active.scrollIntoView({ block: "center", behavior: "smooth" });
+            });
+          }
+        }
         break;
     }
   });

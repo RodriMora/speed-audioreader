@@ -14,6 +14,7 @@ A synchronized audiobook speed reader that displays one word at a time, perfectl
 - ORP (Optimal Recognition Point) focus letter highlighting
 - Adjustable playback speed (0.25× – 3.0×)
 - Progress bar with scrubbing / seeking
+- **Chapter navigation** — chapter list, prev/next buttons, progress bar markers
 - Multi-part audiobook support (seamless transitions)
 - Position memory (resumes where you left off)
 - Customizable colors, font size, and focus letter color
@@ -28,6 +29,8 @@ A synchronized audiobook speed reader that displays one word at a time, perfectl
 | `←` / `→` | Seek ±5 seconds |
 | `↑` / `↓` | Speed ±0.1× |
 | `[` / `]` | Seek ±30 seconds |
+| `P` / `N` | Previous / Next chapter |
+| `L` | Toggle chapter list |
 | `R` | Reset to beginning |
 | `M` | Mute / Unmute |
 | `C` | Toggle context words |
@@ -104,6 +107,14 @@ This will:
 - Transcribe with word-level timestamps via Whisper
 - Output `app/data/alignment_compact.json`
 
+Then map chapter boundaries to audio timestamps:
+
+```bash
+python map_chapters.py
+```
+
+This matches EPUB chapter text to the Whisper transcription to find where each chapter starts/ends in the audio. The chapter data is embedded into `alignment_compact.json`.
+
 ### 4. Run the reader
 
 ```bash
@@ -120,9 +131,11 @@ Open **http://localhost:8080/app/** in your browser.
 │   ├── styles.css           # Dark theme UI
 │   ├── app.js               # Core reader + audio sync logic
 │   └── data/
-│       └── alignment_compact.json  # Word-level timestamps
+│       ├── alignment_compact.json  # Word-level timestamps + chapters
+│       └── chapters.json           # Raw chapter text from EPUB
 ├── books/                   # Place audiobooks here (gitignored)
 ├── preprocess.py            # Whisper transcription pipeline
+├── map_chapters.py          # Chapter-to-timestamp mapper
 ├── serve.py                 # HTTP server with Range request support
 └── requirements.txt         # Python dependencies
 ```

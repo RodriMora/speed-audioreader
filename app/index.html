@@ -17,12 +17,16 @@
     <span id="bookTitle" class="book-title">Loading...</span>
     <span id="timeLeft">0:00</span>
   </div>
-  <div class="progressBar" id="progressBar" role="slider"
-       aria-label="Progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
-    <div id="progressFill" class="progressFill" style="width:0%"></div>
+  <div class="progressBarWrap">
+    <div class="progressBar" id="progressBar" role="slider"
+         aria-label="Progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
+      <div id="progressFill" class="progressFill" style="width:0%"></div>
+      <div id="chapterMarkers" class="chapter-markers"></div>
+    </div>
   </div>
   <div class="progressBottomRow">
     <span id="wordCounter" class="word-counter"></span>
+    <span id="chapterName" class="chapter-name" title=""></span>
     <span id="statusMsg" class="status-msg"></span>
   </div>
 </div>
@@ -30,6 +34,8 @@
 <!-- Controls -->
 <div class="controls">
   <div class="playbackRow">
+    <button id="chaptersBtn" class="icon-btn chapters-btn" title="Chapters (L)" aria-label="Chapters" style="display:none">☰</button>
+    <button id="prevChapterBtn" class="icon-btn" aria-label="Previous chapter" title="Prev chapter (P)" style="display:none">⏮</button>
     <button id="resetBtn" class="icon-btn" aria-label="Reset to beginning" title="Reset">⟲</button>
     <button id="back10Btn" class="icon-btn" aria-label="Back 10 seconds" title="-10s">⏪</button>
     <button id="playBtn" class="playBtn icon-btn" aria-label="Play/Pause">
@@ -37,6 +43,7 @@
       <span id="pauseIcon" aria-hidden="true" hidden>⏸</span>
     </button>
     <button id="fwd10Btn" class="icon-btn" aria-label="Forward 10 seconds" title="+10s">⏩</button>
+    <button id="nextChapterBtn" class="icon-btn" aria-label="Next chapter" title="Next chapter (N)" style="display:none">⏭</button>
     <button id="settingsBtn" class="icon-btn settings-btn" title="Settings" aria-label="Settings">⚙</button>
   </div>
 
@@ -100,6 +107,15 @@
       <button id="themeResetBtn">Reset</button>
       <button id="themeApplyBtn">Apply</button>
     </div>
+  </div>
+</div>
+
+<!-- Chapters Modal -->
+<div id="chaptersBackdrop" class="modal-backdrop">
+  <div class="modal chapters-modal">
+    <button class="modalCloseX" id="closeChapters" aria-label="Close chapters">×</button>
+    <strong>Chapters</strong>
+    <ul id="chapterList" class="chapter-list"></ul>
   </div>
 </div>
 
